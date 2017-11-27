@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+{% block title %} View Soda History {% endblock %}
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col s12 ">
+            <div class="card grey lighten-4">
+                <div class="card-content">
+                    <span class="card-title center"><h3>Manage Soda</h3></span>
+                    <form id="choose_existing" action="add_soda" method="post">
+                    {{ csrf_token() }}
+                    <input type="hidden" value="" id="existing_id" name="id">
+
+                    </form>
+                    <form id="choose_new" action="add_soda" method="post">
+                        {{ csrf_token() }}
+                        <input type="hidden" value="True" name="new_entry">
+                    </form>
+                    <div class="row">
+                    <select id="choose_select" onchange="choose_select_change();">
+                        <option value="" disabled selected >Choose Another Soda</option>
+                        {% if c.HAS_SODA_ADMIN_ACCESS %}
+                        <option value="new">Add New Soda</option>
+                        {% endif %}
+                        {% for cat in items %}
+                        <option value="{{ cat.id }}">{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                        </div>
+                    <form action= "add_soda" method="post" enctype="multipart/form-data">
+                        {{ csrf_token() }}
+                        <div class="row">
+                            {% if not item.is_new %}
+                            <input type="hidden" value="{{ item.id }}" name="id" />
+                            {% endif %}
+                            <div class="input-field">
+                                <label for="name">Name</label>
+                                <input required type="text" id="name" name="name" value="{{ item.name }}" placeholder="" />
+                            </div>
+                            <div class="input-field">
+                                <label for="price">Price</label>
+                                <input required type="number" min="0" id="price" name="price" value="{{ item.price }}" placeholder="0.75" step="0.25" />
+                            </div>
+                            <div class="input-field">
+                                <label for="current_quantity">Current Quantity</label>
+                                <input required type="number" min="0" id="current_quantity" name="current_quantity" value="{{ item.current_quantity }}" placeholder="" />
+                            </div>
+                            <div class="input-field">
+                                <label for="lifetime_quantity">Lifetime Quantity</label>
+                                <input required type="text" id="lifetime_quantity" disabled value="{{ item.lifetime_quantity }}" placeholder="" />
+                            </div>
+                            <div class="input-field center">
+                                <input type="submit" value="Save" class="waves-effect waves-light btn"/>
+                                </form>
+                                {% if c.HAS_SODA_ADMIN_ACCESS %}
+                                <form action="delete" method="post">
+                                    <input type="hidden" value="{{ item.id }}" name="id"/>
+                                    <input type="hidden" value="item" name="option"/>
+                                <input type="submit" value="Delete" class="waves-effect waves-light btn" />
+                                </form>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    var openPage = function(value){
+      window.open(value, "_self");
+    };
+
+     var choose_existing = function(id){
+        document.getElementById('existing_id').value = id;
+        document.getElementById('choose_existing').submit();
+    };
+    var choose_select_change = function(){
+        var val = document.getElementById('choose_select').value;
+        if(val) {
+            if (val == 'new') {
+                document.getElementById('choose_new').submit();
+            }
+            else{
+                choose_existing(val);
+            }
+        }
+    };
+
+     var publicCheck = function(element){
+        var hiddenID = element.id + "h";
+        var hiddenElem = $("#" + hiddenID);
+
+        console.log(element.checked);
+        if(element.checked){
+
+            hiddenElem.prop("checked", false);
+        }
+        else{
+            hiddenElem.prop("checked", true);
+        }
+        console.log(hiddenElem.prop('checked'));
+    };
+
+</script>
+{% endblock %}
+
+{% block jquery_ready %}
+$('select').material_select();
+{% endblock %}

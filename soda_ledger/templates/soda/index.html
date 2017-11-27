@@ -1,0 +1,216 @@
+{% extends 'base.html' %}
+{% block title %} Soda Ledger{% endblock %}
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col s12 ">
+            <div class="card grey lighten-4">
+                <div class="card-content">
+                    <span class="card-title center"><h3>Buy A Soda?</h3></span>
+                    <div class="row">
+                        <form id="choose_existing" action="add_soda" method="post">
+                    {{ csrf_token() }}
+                    <input type="hidden" value="" id="existing_id" name="id">
+
+                    </form>
+                    <form id="choose_new" action="add_soda" method="post">
+                        {{ csrf_token() }}
+                        <input type="hidden" value="True" name="new_entry">
+                    </form>
+                    <div class="row">
+                        <div class="col s12">
+                            <div class="input-field">
+
+                    <select id="choose_select" onchange="update_quantity();">
+                        <option value="" disabled selected>Choose A Soda</option>
+                        {% if c.HAS_SODA_ADMIN_ACCESS %}
+                        <option value="new">Add New Soda</option>
+                        {% endif %}
+                        {% for cat in items %}
+                        <option id='{{ cat.id }}' value="#{{ cat.id }}" data-name="{{ cat.name }}" data-id="{{ cat.id }}" data-max="{{ cat.current_quantity }}" data-price="{{ cat.current_price }}">{{ cat.name }} - ${{ cat.current_price }} - {{ cat.current_quantity }} Remaining</option>
+                        {% endfor %}
+                    </select>
+                            </div>
+                        </div>
+
+                        </div>
+                        <div class="cart" id="cart">
+                        </div>
+                        <div class="row">
+                            <div class="col s12 right-align">
+                                <span>Total: $</span><span id="total">0.00</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    var global_num = 1;
+    var total_price = 0;
+    var openPage = function(value){
+      window.open(value, "_self");
+    };
+
+     var choose_existing = function(id){
+        document.getElementById('existing_id').value = id;
+        document.getElementById('choose_existing').submit();
+    };
+    var choose_select_change = function(){
+        var val = document.getElementById('choose_select').value;
+        if(val) {
+            if (val == 'new') {
+                document.getElementById('choose_new').submit();
+            }
+            else{
+                choose_existing(val);
+            }
+        }
+    };
+
+    var update_quantity = function(id){
+      var current_value  = $('#choose_select').val();
+      var current_option = $(current_value);
+      var current_price = current_option.data('price');
+      var current_id = current_option.data('id');
+      var current_name = current_option.data('name');
+      var current_quantity = current_option.data('max');
+
+      if(current_name) {
+          current_option.attr({
+              'disabled': true
+          });
+          $('#cart').append(create_cart_element(current_id, current_name, current_price, current_quantity));
+          get_total_price();
+      }
+    };
+
+    var create_cart_element = function(id, name, price, quantity){
+        var row_element = $("<div></div>");
+        var name_col = $("<div></div>");
+        var quantity_col = $("<div></div>");
+        var minus_col = $("<div></div>");
+        var price_col = $("<div></div>");
+
+        var name_input_div = $("<div></div>");
+        var quantity_input_div = $("<div></div>");
+        var minus_input_div = $("<div></div>");
+        var price_input_div = $("<div></div>");
+
+        var name_input = $("<input/>");
+        var quantity_input = $("<input/>");
+        var minus_input = $("<a></a>");
+        var id_input= $("<input/>");
+        var minus_icon = $("<i></i>");
+        var price_input = $("<input />");
+
+        var name_label = $("<label></label>");
+        var quantity_label = $("<label></label>");
+        var price_label = $("<label></label>");
+
+        row_element.addClass('row');
+        name_col.addClass("col s9 m4 l8");
+        price_col.addClass("col s3 m2 l2");
+        quantity_col.addClass("col s6 m3 l1");
+        minus_col.addClass("col s6 m3 l1");
+        name_input_div.addClass("input-field");
+        quantity_input_div.addClass("input-field");
+        minus_input_div.addClass("input-field center");
+        price_input_div.addClass("input-field");
+        minus_icon.addClass("fa");
+        minus_icon.addClass("fa-minus");
+        minus_icon.addClass("fa-3x");
+
+        name_input.addClass('fake-disabled');
+        price_input.addClass('fake-disabled');
+
+        name_input.val(name);
+        price_input.val(price);
+        quantity_input.val(1);
+        id_input.val(id);
+        quantity_label.text('Quantity');
+        name_label.text('Name');
+        price_label.text('Price Per Item');
+
+        name_input.attr({
+            'disabled': true,
+            'id': 'name'+global_num,
+            'value': name
+        });
+
+        id_input.attr({
+            'hidden': true,
+            'name': 'id'
+        });
+
+        quantity_input.attr({
+            'min': 0,
+            'max': quantity,
+            'required': true,
+            'id': 'quantity' + global_num,
+            'type': 'number',
+            'onchange': 'get_total_price()'
+        });
+
+        price_input.attr({
+            'disabled': true,
+            'id': 'price' + global_num,
+            'step': 0.01,
+            'type': 'number'
+        });
+
+        quantity_label.attr({
+            'for': 'quantity'+ global_num
+        });
+
+        name_label.attr({
+            'for': 'name' + global_num
+        });
+
+        price_label.attr({
+            'for': 'price' + global_num
+        });
+
+        global_num += 1;
+
+        minus_input.append(minus_icon);
+
+        //name_input_div.append(name_label);
+        name_input_div.append(name_input);
+        //quantity_input_div.append(quantity_label);
+        quantity_input_div.append(quantity_input);
+        minus_input_div.append(minus_input);
+        //price_input_div.append(price_label);
+        price_input_div.append(price_input);
+
+        name_col.append(name_input_div);
+        quantity_col.append(quantity_input_div);
+        minus_col.append(minus_input_div);
+        price_col.append(price_input_div);
+
+        row_element.append(name_col);
+        row_element.append(price_col);
+        row_element.append(quantity_col);
+        row_element.append(minus_col);
+
+        return row_element;
+
+    };
+
+    var get_total_price = function(){
+    total_price = 0;
+    for(var i = 1; i < global_num; i++){
+          total_price += $("#price" + i).val() * $("#quantity" + i).val();
+    }
+    $("#total").text(total_price);
+    return total_price;
+    };
+
+</script>
+{% endblock %}
+
+{% block jquery_ready %}
+$('select').material_select();
+{% endblock %}
