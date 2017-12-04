@@ -1,5 +1,6 @@
 from soda_ledger import *
 
+
 @all_renderable(c.SODA_ADMIN)
 class Root:
     def index(self, session, message=''):

@@ -23,6 +23,9 @@ class Root:
     def manage(self, session):
         return ''
 
+    def purchase(self, session, message='', **params):
+        pass
+
     @unrestricted
     def signup(self, session,  password='', message='', **params):
         user = session.user(params, checkgroups=User.all_checkgroups, bools=User.all_bools)

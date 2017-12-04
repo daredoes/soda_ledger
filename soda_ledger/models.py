@@ -8,8 +8,24 @@ class Soda(MainModel):
     sale_price = Column(Float, default=0.75)
     lowest_sale_price = Column(Float, default=0.75)
     name = Column(UnicodeText, unique=True)
-    purchase_history = relationship('Purchase', backref='soda')
+    purchase_history = relationship('CartItem', backref='soda')
     on_sale = Column(Boolean, default=False)
+
+    def take(self, amount):
+        if amount > 0 and self.current_quantity - amount >= 0:
+            self.current_quantity -= amount
+            return True
+
+    def is_available(self):
+        if self.available_quantity > 0:
+            return True
+
+    @property
+    def available_quantity(self):
+        a_q = self.current_quantity
+        for item in self.purchase_history:
+            a_q -= 0 if item.completed else item.quantity
+        return a_q
 
     @property
     def current_price(self):
@@ -32,19 +48,41 @@ class User:
     total_withdrawn = Column(Float, default=0)
     total_deposited = Column(Float, default=0)
     minimum_balance = Column(Float, default=0)
-    purchases = relationship('Purchase', backref='student')
+    purchases = relationship('Cart', backref='user')
 
 
-class Purchase(MainModel):
-    time = Column(UTCDateTime, default=datetime.now(UTC))
-    soda_id = Column(UUID, ForeignKey('soda.id'), nullable=True, index=True)
-    was_on_sale = Column(Boolean, default=False)
-    price = Column(Float, default=0)
-    user_id = Column(UUID, ForeignKey('user.id'), nullable=True, index=True)
+class CartItem(MainModel):
+    soda_id = Column(UUID, ForeignKey('soda.id'))
+    quantity = Column(Integer, default=1, nullable=False)
+    cart_id = Column(UUID, ForeignKey('cart.id'), nullable=True)
 
-    @presave_adjustment
-    def _misc_adjustments(self):
-        the_soda = self.session.soda(self.soda_id)
-        if the_soda.on_sale:
-            self.was_on_sale = True
-        self.price = the_soda.current_price
+    @property
+    def price(self):
+        return self.soda.current_price * self.quantity
+
+    @property
+    def completed(self):
+        return True if self.cart.checkout_time else False
+
+    def commit_transaction(self):
+        return self.soda.take(self.quantity)
+
+
+class Cart(MainModel):
+    checkout_time = Column(UTCDateTime, default=None, nullable=True)
+    user_id = Column(UUID, ForeignKey('user.id'))
+    items = relationship('CartItem', backref='cart')
+
+    def commit_transaction(self):
+        for i in self.items:
+            if not i.commit_transaction():
+                return False
+        self.checkout_time = datetime.now(UTC)
+        return True
+
+    @property
+    def total_cost(self):
+        cost = 0
+        for item in self.items:
+            cost += item.price
+        return cost
