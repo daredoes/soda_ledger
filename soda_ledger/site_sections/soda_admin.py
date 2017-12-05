@@ -13,6 +13,8 @@ class Root:
         if 'name' in params:
             session.add(user)
             session.commit()
+        if user.is_new:
+            user = session.query(User).first()
         return {
             'message': message,
             'item': user,

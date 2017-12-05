@@ -14,7 +14,8 @@ class Soda(MainModel):
     def take(self, amount):
         if amount > 0 and self.current_quantity - amount >= 0:
             self.current_quantity -= amount
-            return True
+            return ''
+        return "Not enough available."
 
     def is_available(self):
         if self.available_quantity > 0:
@@ -50,6 +51,21 @@ class User:
     minimum_balance = Column(Float, default=0)
     purchases = relationship('Cart', backref='user')
 
+    def purchase(self, item):
+        if self.balance - item.price >= self.minimum_balance:
+            attempt_transaction = item.commit_transaction()
+            if not attempt_transaction:
+                self.balance -= item.price
+                return ''
+            return attempt_transaction
+        return "Not Enough Funds"
+
+    @property
+    def current_cart(self):
+        for p in self.purchases:
+            if not p.checkout_time:
+                return p
+
 
 class CartItem(MainModel):
     soda_id = Column(UUID, ForeignKey('soda.id'))
@@ -75,10 +91,13 @@ class Cart(MainModel):
 
     def commit_transaction(self):
         for i in self.items:
-            if not i.commit_transaction():
-                return False
+            attempted_transaction = self.user.purchase(i)
+            if attempted_transaction:
+                with Session() as session:
+                    session.rollback()
+                return attempted_transaction
         self.checkout_time = datetime.now(UTC)
-        return True
+        return 'Purchase Successful!'
 
     @property
     def total_cost(self):
@@ -86,3 +105,10 @@ class Cart(MainModel):
         for item in self.items:
             cost += item.price
         return cost
+
+    @property
+    def total_items(self):
+        count = 0
+        for item in self.items:
+            count += item.quantity
+        return count

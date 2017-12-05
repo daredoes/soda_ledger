@@ -1,12 +1,13 @@
 {% extends 'base.html' %}
 {% block title %} Soda Ledger{% endblock %}
+{% block page_title %} Buy Soda {%endblock %}
 {% block content %}
 <div class="container">
     <div class="row">
         <div class="col s12 ">
             <div class="card grey lighten-4">
                 <div class="card-content">
-                    <span class="card-title center"><h3>Buy A Soda?</h3></span>
+                    <span class="card-title center"><h3>Remaining Balance: {{ "${:,.2f}".format(cart.user.balance) }}</h3></span>
                     <div class="row">
                         <form id="choose_existing" action="add_soda" method="post">
                     {{ csrf_token() }}
@@ -21,7 +22,7 @@
                         <div class="col s12">
                             <div class="input-field">
 
-                    <select id="choose_select" onchange="update_quantity();">
+                    <select id="choose_select" onchange="add_item_to_cart_ajax();">
                         <option value="" disabled selected>Choose A Soda</option>
                         {% if c.HAS_SODA_ADMIN_ACCESS %}
                         <option value="new">Add New Soda</option>
@@ -35,11 +36,53 @@
 
                         </div>
                         <div class="cart" id="cart">
+                            {% for i in cart.items %}
+                            <div class="row cart-item">
+                                <div class="col s9 m4 l8">
+                                    <div class="input-field">
+                                        <input class="fake-disabled" disabled="disabled" id="name1" value="{{ i.soda.name }}">
+                                    </div>
+                                </div>
+                                <div class="col s3 m2 l2">
+                                    <div class="input-field">
+                                        <input class="fake-disabled" disabled="disabled" id="price1" step="0.01" value="{{ i.soda.current_price}}" type="number"></div>
+                                </div>
+                                <div class="col s6 m3 l1">
+                                    <div class="input-field">
+                                        <input min="1" max="{{ i.soda.current_quantity }}" value="{{ i.quantity }}" required="required" type="number" id="soda_input{{ loop.index }}" onblur="update_cart_ajax('{{ i.soda.id}}', this.value);">
+                                    </div>
+                                </div>
+                                <div class="col s6 m3 l1">
+                                    <div class="input-field center">
+                                        <a><i class="fa fa-minus fa-3x"></i></a>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {% endfor %}
                         </div>
                         <div class="row">
                             <div class="col s12 right-align">
-                                <span>Total: $</span><span id="total">0.00</span>
+                                <div class="input-field">
+                                    <a class="btn" onclick="empty_cart_ajax()">Empty Cart</a>
+                                </div>
                             </div>
+                        </div>
+                        <div class="row">
+                            <div class="col s12 right-align">
+                                <a class="btn">Total: <span id="total">{{ "${:,.2f}".format(cart.total_cost) }}</span></a>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col s12 right-align">
+                                <a class="btn">Total: #<span id="total_items">{{ cart.total_items }}</span></a>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col s12 right-align">
+                                <a class="btn" href="confirm">Confirm Purchase?</a>
+                            </div>
+                        </div>
                         </div>
                     </div>
                 </div>
@@ -110,7 +153,7 @@
         var quantity_label = $("<label></label>");
         var price_label = $("<label></label>");
 
-        row_element.addClass('row');
+        row_element.addClass('row cart-item');
         name_col.addClass("col s9 m4 l8");
         price_col.addClass("col s3 m2 l2");
         quantity_col.addClass("col s6 m3 l1");
@@ -151,8 +194,9 @@
             'required': true,
             'id': 'quantity' + global_num,
             'type': 'number',
-            'onchange': 'get_total_price()'
+            'onchange': 'update_cart_ajax(this)'
         });
+        quantity_input.data('id', id);
 
         price_input.attr({
             'disabled': true,
@@ -200,12 +244,99 @@
     };
 
     var get_total_price = function(){
-    total_price = 0;
-    for(var i = 1; i < global_num; i++){
-          total_price += $("#price" + i).val() * $("#quantity" + i).val();
-    }
-    $("#total").text(total_price);
-    return total_price;
+        total_price = 0;
+        for(var i = 1; i < global_num; i++){
+              total_price += $("#price" + i).val() * $("#quantity" + i).val();
+        }
+        $("#total").text(total_price);
+        return total_price;
+    };
+
+    var get_total_items_ajax = function(){
+        $.ajax({
+           url: 'cart_total_items',
+            success: function(e){
+                if(e.status){
+                    $("#total_items").text(e.message);
+                }
+            }
+        });
+    };
+
+    var get_total_price_ajax = function(){
+        $.ajax({
+            url: 'cart_total',
+            success: function(e){
+                if(e.status){
+                    $("#total").text(e.message);
+                    get_total_items_ajax();
+
+                }
+            }
+        });
+    };
+
+    var empty_cart_ajax = function(){
+        $.ajax({
+            url: 'empty_cart',
+            method: 'POST',
+            data: {
+                'csrf_token': csrf_token
+            },
+            success: function(e){
+                Materialize.toast(e.message, 3000);
+                if(e.status){
+                    $("#cart").empty();
+                    get_total_price_ajax();
+
+                }
+            }
+        });
+
+    };
+
+    var update_cart_ajax = function(id, quantity){
+        $.ajax({
+            url: 'update_cart',
+            method: 'POST',
+            data: {
+                'id': id,
+                'quantity': quantity,
+                'csrf_token': csrf_token
+            },
+            success: function(e){
+                Materialize.toast(e.message, 3000);
+                if(e.status){
+                    $("#cart").append(e.code);
+                    get_total_price_ajax();
+
+                }
+            }
+        });
+
+    };
+
+    var add_item_to_cart_ajax = function(){
+        var current_value  = $('#choose_select').val();
+        var current_option = $(current_value);
+        var current_id = current_option.data('id');
+        $.ajax({
+            url: 'update_cart',
+            method: 'POST',
+            data: {
+                'id': current_id,
+                'quantity': 1,
+                'csrf_token': csrf_token
+            },
+            success: function(e){
+                Materialize.toast(e.message, 3000);
+                if(e.status){
+                    $("#cart").append(e.code);
+                    get_total_price_ajax();
+
+                }
+            }
+        });
     };
 
 </script>

@@ -1,0 +1,183 @@
+{% extends 'base.html' %}
+{% block page_title %} Purchase Confirmation{% endblock %}
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col s12 ">
+            <div class="card grey lighten-4">
+                <div class="card-content">
+                    <span class="card-title center"><h3>Buy A Soda?</h3></span>
+                    <div class="row">
+                        <div class="cart" id="cart">
+                            {% for i in cart.items %}
+                            <div class="row cart-item">
+                                <div class="col s9 m4 l8">
+                                    <div class="input-field">
+                                        <input class="fake-disabled" disabled="disabled" id="name1" value="{{ i.soda.name }}">
+                                    </div>
+                                </div>
+                                <div class="col s3 m2 l2">
+                                    <div class="input-field">
+                                        <input class="fake-disabled" disabled="disabled" id="price1" step="0.01" value="{{ i.soda.current_price}}" type="number"></div>
+                                </div>
+                                <div class="col s6 m3 l1">
+                                    <div class="input-field">
+                                        <input min="1" disabled class="fake-disabled" max="{{ i.soda.current_quantity }}" value="{{ i.quantity }}" required="required" type="number" id="soda_input{{ loop.index }}">
+                                    </div>
+                                </div>
+                                <div class="col s6 m3 l1">
+                                    <div class="input-field center">
+                                        <a><i class="fa fa-minus fa-3x"></i></a>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {% endfor %}
+                        </div>
+                        <div class="row">
+                            <div class="col s12 right-align">
+                                <a class="btn">Total: <span id="total">{{ "${:,.2f}".format(cart.total_cost) }}</span></a>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col s12 right-align">
+                                <a class="btn">Remaining Balance: <span id="balance">{{ "${:,.2f}".format(user.balance) }}</span></a>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col s12 right-align">
+                                <a class="btn">Total: #<span id="total_items">{{ cart.total_items }}</span></a>
+                            </div>
+                        </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    var global_num = 1;
+    var total_price = 0;
+    var openPage = function(value){
+      window.open(value, "_self");
+    };
+
+     var choose_existing = function(id){
+        document.getElementById('existing_id').value = id;
+        document.getElementById('choose_existing').submit();
+    };
+    var choose_select_change = function(){
+        var val = document.getElementById('choose_select').value;
+        if(val) {
+            if (val == 'new') {
+                document.getElementById('choose_new').submit();
+            }
+            else{
+                choose_existing(val);
+            }
+        }
+    };
+
+    var get_total_price = function(){
+        total_price = 0;
+        for(var i = 1; i < global_num; i++){
+              total_price += $("#price" + i).val() * $("#quantity" + i).val();
+        }
+        $("#total").text(total_price);
+        return total_price;
+    };
+
+    var get_total_items_ajax = function(){
+        $.ajax({
+           url: 'cart_total_items',
+            success: function(e){
+                if(e.status){
+                    $("#total_items").text(e.message);
+                }
+            }
+        });
+    };
+
+    var get_total_price_ajax = function(){
+        $.ajax({
+            url: 'cart_total',
+            success: function(e){
+                if(e.status){
+                    $("#total").text(e.message);
+                    get_total_items_ajax();
+
+                }
+            }
+        });
+    };
+
+    var empty_cart_ajax = function(){
+        $.ajax({
+            url: 'empty_cart',
+            method: 'POST',
+            data: {
+                'csrf_token': csrf_token
+            },
+            success: function(e){
+                Materialize.toast(e.message, 3000);
+                if(e.status){
+                    $("#cart").empty();
+                    get_total_price_ajax();
+
+                }
+            }
+        });
+
+    };
+
+    var update_cart_ajax = function(id, quantity){
+        $.ajax({
+            url: 'update_cart',
+            method: 'POST',
+            data: {
+                'id': id,
+                'quantity': quantity,
+                'csrf_token': csrf_token
+            },
+            success: function(e){
+                Materialize.toast(e.message, 3000);
+                if(e.status){
+                    $("#cart").append(e.code);
+                    get_total_price_ajax();
+
+                }
+            }
+        });
+
+    };
+
+    var add_item_to_cart_ajax = function(){
+        var current_value  = $('#choose_select').val();
+        var current_option = $(current_value);
+        var current_id = current_option.data('id');
+        $.ajax({
+            url: 'update_cart',
+            method: 'POST',
+            data: {
+                'id': current_id,
+                'quantity': 1,
+                'csrf_token': csrf_token
+            },
+            success: function(e){
+                Materialize.toast(e.message, 3000);
+                if(e.status){
+                    $("#cart").append(e.code);
+                    get_total_price_ajax();
+
+                }
+            }
+        });
+    };
+
+</script>
+{% endblock %}
+
+{% block jquery_ready %}
+$('select').material_select();
+{% endblock %}

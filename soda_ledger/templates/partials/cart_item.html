@@ -1,0 +1,21 @@
+<div class="row cart-item">
+    <div class="col s9 m4 l8">
+        <div class="input-field">
+            <input class="fake-disabled" disabled="disabled" value="{{ item.soda.name }}">
+        </div>
+    </div>
+    <div class="col s3 m2 l2">
+        <div class="input-field">
+            <input class="fake-disabled" disabled="disabled" step="0.01" value="{{ item.soda.current_price}}" type="number"></div>
+    </div>
+    <div class="col s6 m3 l1">
+        <div class="input-field">
+            <input min="1" max="{{ item.soda.current_quantity }}" value="{{ item.quantity }}" required="required" type="number" id="{{ item.id }}" onblur="update_cart_ajax('{{ item.soda.id}}', '{{ item.soda.current_quantity}}');">
+        </div>
+    </div>
+    <div class="col s6 m3 l1">
+        <div class="input-field center">
+            <a><i class="fa fa-minus fa-3x"></i></a>
+        </div>
+    </div>
+</div>

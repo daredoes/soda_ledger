@@ -29,7 +29,7 @@
                             <div class="col s12">
                                 <div class="input-field">
                                     <label for="name">Name</label>
-                                    <input required type="text" class="fake-disabled" disabled id="name" name="name" value="{{ item.name }}" placeholder="" />
+                                    <input required type="text" class="fake-disabled" id="name" name="name" value="{{ item.name }}" placeholder="" />
                                 </div>
                             </div>
                             <div class="col s12 m6">
@@ -56,6 +56,8 @@
                                 <input required type="text" class="fake-disabled" disabled id="total_deposited" name="total_deposited" value="${{ item.total_deposited }}" placeholder="" />
                             </div>
                             </div>
+                            </div>
+                        <div class="row">
 
                             <div class="input-field center">
                                 <div class="row">
@@ -63,6 +65,8 @@
                                 </form>
                                 </div>
                             </div>
+                        </div>
+                        <div class="row">
                              <div class="input-field center">
 
                                 {% if c.HAS_SODA_ADMIN_ACCESS %}
