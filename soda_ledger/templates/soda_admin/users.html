@@ -6,7 +6,7 @@
         <div class="col s12 ">
             <div class="card grey lighten-4">
                 <div class="card-content">
-                    <span class="card-title center"><h3>Manage Soda</h3></span>
+                    <span class="card-title center"><h3>Manage Users</h3></span>
                     <form id="choose_existing" action="users" method="post">
                     {{ csrf_token() }}
                     <input type="hidden" value="" id="existing_id" name="id">
@@ -46,7 +46,7 @@
                             </div>
                             <div class="col s12 m6">
                             <div class="input-field">
-                                <label for="total_withdrawn">Total Withdrawn</label>
+                                <label for="total_withdrawn">Total Spent</label>
                                 <input required type="text" class="fake-disabled" disabled id="total_withdrawn" name="total_withdrawn" value="${{ item.total_withdrawn }}" placeholder="" />
                             </div>
                             </div>
@@ -57,6 +57,64 @@
                             </div>
                             </div>
                             </div>
+                        <div class="row">
+                            <table class="striped">
+                                <thead>
+                                <tr>
+                                    <th>Purchase Date</th>
+                                    <th>Total Quantity</th>
+                                    <th>Total Price</th>
+                                    <th>Check The Books</th>
+                                </tr>
+                                </thead>
+
+                                <tbody>
+                                {% set new_balance = item.total_deposited %}
+                                {% for cart in item.purchases|rejectattr("checkout_time", "none")|sort(attribute="checkout_time") %}
+                                <tr>
+                                    <td>{{ cart.checkout_time.strftime("%c") }}</td>
+                                    <td><a href="#{{ cart.id }}" class="modal-trigger" >{{ cart.total_items }}</a></td>
+                                    <td>{{ "${:,.2f}".format(cart.total_cost) }}</td>
+                                    {% set new_balance = new_balance - cart.total_cost %}
+                                    <td>{{ "${:,.2f}".format(new_balance) }}</td>
+                                </tr>
+
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                            {% for cart in item.purchases|rejectattr("checkout_time", "none")|sort(attribute="checkout_time") %}
+                            <div class="modal" id="{{ cart.id }}">
+                                    <div class="modal-content">
+                                        <table class="striped">
+                                            <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th>Quantity</th>
+                                                <th>Price</th>
+                                            </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for item in cart.items %}
+                                                <tr>
+                                                    <td>{{ item.soda.name }}</td>
+                                                    <td>{{ item.quantity}}</td>
+                                                    <td>{{ "${:,.2f}".format(item.price)}}</td>
+                                                </tr>
+                                                {% endfor %}
+                                                <tr>
+                                                    <td>Total</td>
+                                                    <td>{{ cart.total_items}}</td>
+                                                    <td>{{ "${:,.2f}".format(cart.total_cost)}}</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <a href="#!" class="modal-action modal-close waves-effect waves-green btn-flat">Close</a>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
                         <div class="row">
 
                             <div class="input-field center">
@@ -126,4 +184,5 @@
 
 {% block jquery_ready %}
 $('select').material_select();
+$('.modal').modal();
 {% endblock %}

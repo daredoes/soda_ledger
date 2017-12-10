@@ -7,14 +7,14 @@
         <div class="col s12 ">
             <div class="card grey lighten-4">
                 <div class="card-content">
-                    <span class="card-title center"><h3>Remaining Balance: {{ "${:,.2f}".format(cart.user.balance) }}</h3></span>
+                    <span class="card-title center"><h3>Remaining Balance: <span id="balance">{{ "${:,.2f}".format(cart.user.balance - cart.total_cost) }}</span></h3></span>
                     <div class="row">
                         <form id="choose_existing" action="add_soda" method="post">
                     {{ csrf_token() }}
                     <input type="hidden" value="" id="existing_id" name="id">
 
                     </form>
-                    <form id="choose_new" action="add_soda" method="post">
+                    <form id="choose_new" action="../soda_admin/add_soda" method="post">
                         {{ csrf_token() }}
                         <input type="hidden" value="True" name="new_entry">
                     </form>
@@ -23,9 +23,9 @@
                             <div class="input-field">
 
                     <select id="choose_select" onchange="add_item_to_cart_ajax();">
-                        <option value="" disabled selected>Choose A Soda</option>
+                        <option value="" disabled selected>{{ 'Choose A Soda' if items|length > 0 else 'Inventory Empty'}}</option>
                         {% if c.HAS_SODA_ADMIN_ACCESS %}
-                        <option value="new">Add New Soda</option>
+                        <option id="new" value="new">Add New Soda</option>
                         {% endif %}
                         {% for cat in items %}
                         <option id='{{ cat.id }}' value="#{{ cat.id }}" data-name="{{ cat.name }}" data-id="{{ cat.id }}" data-max="{{ cat.current_quantity }}" data-price="{{ cat.current_price }}">{{ cat.name }} - ${{ cat.current_price }} - {{ cat.current_quantity }} Remaining</option>
@@ -37,7 +37,7 @@
                         </div>
                         <div class="cart" id="cart">
                             {% for i in cart.items %}
-                            <div class="row cart-item">
+                            <div class="row cart-item" id="{{ i.id }}">
                                 <div class="col s9 m4 l8">
                                     <div class="input-field">
                                         <input class="fake-disabled" disabled="disabled" id="name1" value="{{ i.soda.name }}">
@@ -54,7 +54,7 @@
                                 </div>
                                 <div class="col s6 m3 l1">
                                     <div class="input-field center">
-                                        <a><i class="fa fa-minus fa-3x"></i></a>
+                                        <a onclick="remove_item_ajax('{{ i.id }}')" href="#!"><i class="fa fa-minus fa-3x"></i></a>
                                     </div>
                                 </div>
                             </div>
@@ -62,25 +62,19 @@
                             {% endfor %}
                         </div>
                         <div class="row">
-                            <div class="col s12 right-align">
-                                <div class="input-field">
-                                    <a class="btn" onclick="empty_cart_ajax()">Empty Cart</a>
-                                </div>
+                            <div class="col s6 right-align">
+                                <div class="chip">Total: <span id="total">{{ "${:,.2f}".format(cart.total_cost) }}</span></div>
+                            </div>
+                            <div class="col s6 left-align">
+                                <div class="chip">Total: #<span id="total_items">{{ cart.total_items }}</span></div>
                             </div>
                         </div>
                         <div class="row">
-                            <div class="col s12 right-align">
-                                <a class="btn">Total: <span id="total">{{ "${:,.2f}".format(cart.total_cost) }}</span></a>
+                            <div class="col s6 right-align">
+                                <div class="chip"><a class="" href="#!" onclick="empty_cart_ajax()">Empty Cart</a></div>
                             </div>
-                        </div>
-                        <div class="row">
-                            <div class="col s12 right-align">
-                                <a class="btn">Total: #<span id="total_items">{{ cart.total_items }}</span></a>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col s12 right-align">
-                                <a class="btn" href="confirm">Confirm Purchase?</a>
+                            <div class="col s6 left-align">
+                                <div class="chip"><a class="modal-trigger" onclick="get_confirm_items()" href="#confirm">Checkout</a></div>
                             </div>
                         </div>
                         </div>
@@ -89,7 +83,33 @@
             </div>
         </div>
     </div>
-</div>
+    <div class="modal modal-fixed-footer" id="confirm">
+        <div id="confirm_content" class="modal-content">
+            <div class="center-align">
+                <span id="confirm_message"></span>
+                <div id="confirm_items">
+                    <br>
+                    <div class="preloader-wrapper active valign-wrapper">
+                        <div class="spinner-layer spinner-red-only">
+                          <div class="circle-clipper left">
+                            <div class="circle"></div>
+                          </div><div class="gap-patch">
+                            <div class="circle"></div>
+                          </div><div class="circle-clipper right">
+                            <div class="circle"></div>
+                          </div>
+                        </div>
+                      </div>
+
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+
+            <a href="{{ c.PATH }}/accounts/logout" class="waves-effect waves-green btn-flat">Exit</a>
+            <a href="#!" class="modal-action modal-close waves-effect waves-green btn-flat">Make Another Purchase</a>
+        </div>
+    </div>
 <script>
     var global_num = 1;
     var total_price = 0;
@@ -130,117 +150,23 @@
       }
     };
 
-    var create_cart_element = function(id, name, price, quantity){
-        var row_element = $("<div></div>");
-        var name_col = $("<div></div>");
-        var quantity_col = $("<div></div>");
-        var minus_col = $("<div></div>");
-        var price_col = $("<div></div>");
+    var get_confirm_items = function(){
+      $.ajax({
+          'url': 'confirm_items',
+          'method': 'POST',
+          'data': {
+              'csrf_token': csrf_token
+          },
+          success: function(e){
 
-        var name_input_div = $("<div></div>");
-        var quantity_input_div = $("<div></div>");
-        var minus_input_div = $("<div></div>");
-        var price_input_div = $("<div></div>");
-
-        var name_input = $("<input/>");
-        var quantity_input = $("<input/>");
-        var minus_input = $("<a></a>");
-        var id_input= $("<input/>");
-        var minus_icon = $("<i></i>");
-        var price_input = $("<input />");
-
-        var name_label = $("<label></label>");
-        var quantity_label = $("<label></label>");
-        var price_label = $("<label></label>");
-
-        row_element.addClass('row cart-item');
-        name_col.addClass("col s9 m4 l8");
-        price_col.addClass("col s3 m2 l2");
-        quantity_col.addClass("col s6 m3 l1");
-        minus_col.addClass("col s6 m3 l1");
-        name_input_div.addClass("input-field");
-        quantity_input_div.addClass("input-field");
-        minus_input_div.addClass("input-field center");
-        price_input_div.addClass("input-field");
-        minus_icon.addClass("fa");
-        minus_icon.addClass("fa-minus");
-        minus_icon.addClass("fa-3x");
-
-        name_input.addClass('fake-disabled');
-        price_input.addClass('fake-disabled');
-
-        name_input.val(name);
-        price_input.val(price);
-        quantity_input.val(1);
-        id_input.val(id);
-        quantity_label.text('Quantity');
-        name_label.text('Name');
-        price_label.text('Price Per Item');
-
-        name_input.attr({
-            'disabled': true,
-            'id': 'name'+global_num,
-            'value': name
-        });
-
-        id_input.attr({
-            'hidden': true,
-            'name': 'id'
-        });
-
-        quantity_input.attr({
-            'min': 0,
-            'max': quantity,
-            'required': true,
-            'id': 'quantity' + global_num,
-            'type': 'number',
-            'onchange': 'update_cart_ajax(this)'
-        });
-        quantity_input.data('id', id);
-
-        price_input.attr({
-            'disabled': true,
-            'id': 'price' + global_num,
-            'step': 0.01,
-            'type': 'number'
-        });
-
-        quantity_label.attr({
-            'for': 'quantity'+ global_num
-        });
-
-        name_label.attr({
-            'for': 'name' + global_num
-        });
-
-        price_label.attr({
-            'for': 'price' + global_num
-        });
-
-        global_num += 1;
-
-        minus_input.append(minus_icon);
-
-        //name_input_div.append(name_label);
-        name_input_div.append(name_input);
-        //quantity_input_div.append(quantity_label);
-        quantity_input_div.append(quantity_input);
-        minus_input_div.append(minus_input);
-        //price_input_div.append(price_label);
-        price_input_div.append(price_input);
-
-        name_col.append(name_input_div);
-        quantity_col.append(quantity_input_div);
-        minus_col.append(minus_input_div);
-        price_col.append(price_input_div);
-
-        row_element.append(name_col);
-        row_element.append(price_col);
-        row_element.append(quantity_col);
-        row_element.append(minus_col);
-
-        return row_element;
-
+              if(e.status){
+                  var confirm_items_box = $("#confirm_items");
+                  confirm_items_box.empty();
+                 confirm_items_box.append(e.code);
+                 $("#confirm_message").text(e.message);
+              }
+          }
+      })
     };
 
     var get_total_price = function(){
@@ -252,12 +178,25 @@
         return total_price;
     };
 
+    var get_remaining_balance_ajax = function(){
+        $.ajax({
+           url: 'user_balance',
+            success: function(e){
+                if(e.status){
+                    $("#balance").text(e.message);
+                     get_total_items_ajax();
+                }
+            }
+        });
+    };
+
     var get_total_items_ajax = function(){
         $.ajax({
            url: 'cart_total_items',
             success: function(e){
                 if(e.status){
                     $("#total_items").text(e.message);
+                    get_total_price_ajax();
                 }
             }
         });
@@ -269,7 +208,7 @@
             success: function(e){
                 if(e.status){
                     $("#total").text(e.message);
-                    get_total_items_ajax();
+
 
                 }
             }
@@ -287,7 +226,7 @@
                 Materialize.toast(e.message, 3000);
                 if(e.status){
                     $("#cart").empty();
-                    get_total_price_ajax();
+                    get_remaining_balance_ajax();
 
                 }
             }
@@ -308,7 +247,7 @@
                 Materialize.toast(e.message, 3000);
                 if(e.status){
                     $("#cart").append(e.code);
-                    get_total_price_ajax();
+                    get_remaining_balance_ajax();
 
                 }
             }
@@ -332,11 +271,29 @@
                 Materialize.toast(e.message, 3000);
                 if(e.status){
                     $("#cart").append(e.code);
-                    get_total_price_ajax();
+                    get_remaining_balance_ajax();
 
                 }
             }
         });
+    };
+
+    var remove_item_ajax = function(id){
+      $.ajax({
+         url: 'remove_item',
+         method: 'POST',
+         data: {
+             'id': id,
+             'csrf_token': csrf_token
+         },
+         success: function(e){
+             Materialize.toast(e.message, 3000);
+             if(e.status){
+                 $("#" + id).remove();
+                 get_remaining_balance_ajax();
+             }
+         }
+      });
     };
 
 </script>
@@ -344,4 +301,10 @@
 
 {% block jquery_ready %}
 $('select').material_select();
+$('.modal').modal({
+    dismissible: false,
+    complete: function(){
+        location.reload();
+    }
+});
 {% endblock %}

@@ -60,6 +60,15 @@ class User:
             return attempt_transaction
         return "Not Enough Funds"
 
+    @presave_adjustment
+    def balance_adjustments(self):
+        balance_difference = self.balance - self.orig_value_of('balance')
+        if balance_difference != 0:
+            if balance_difference < 0:
+                self.total_withdrawn -= balance_difference
+            else:
+                self.total_deposited += balance_difference
+
     @property
     def current_cart(self):
         for p in self.purchases:

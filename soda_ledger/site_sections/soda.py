@@ -20,7 +20,7 @@ class Root:
     def confirm(self, session, message='', **params):
         user = session.user(c.CURRENT_ADMIN['id'])
         cart = user.current_cart
-        if not cart:
+        if not cart or cart.total_items == 0:
             message = 'No Items To Purchase'
             raise HTTPRedirect("index?message={}".format(message))
         message = cart.commit_transaction()
@@ -30,6 +30,24 @@ class Root:
             'cart': cart,
             'user': user
         }
+
+    @ajax
+    def confirm_items(self, session, message='', **params):
+        user = session.user(c.CURRENT_ADMIN['id'])
+        cart = user.current_cart
+        prior_balance = user.balance
+        if not cart or cart.total_items == 0:
+            message = 'No Items To Purchase'
+            raise HTTPRedirect("index?message={}".format(message))
+        message = cart.commit_transaction()
+        session.commit()
+        code = render('/partials/confirm_items.html', {'items': cart, 'balance': prior_balance}).decode('utf-8')
+        return {
+            'status': True,
+            'message': message,
+            'code': code
+        }
+
 
 
     @ajax
@@ -54,11 +72,12 @@ class Root:
                 session.delete(cart_item)
                 message = 'Item deleted from cart'
             else:
+                added_message = 'Item already in cart.' if cart_item.quantity == int(params['quantity']) else 'Item quantity updated.'
                 cart_item.quantity = params['quantity']
                 is_new = cart_item.is_new
                 session.add(cart_item)
 
-                message = 'Item added to cart' if is_new else 'Item updated in Cart'
+                message = 'Item added to cart' if is_new else added_message
             session.commit()
             code = render('/partials/cart_item.html', {'item': cart_item}).decode('utf-8') if is_new else ''
         return {
@@ -82,6 +101,48 @@ class Root:
         return {
             'status': True,
             'message': 'Cart Emptied'
+        }
+
+    @ajax
+    def remove_item(self, session, **params):
+        user = session.user(c.CURRENT_ADMIN['id'])
+        cart = user.current_cart
+        status = False
+        message = 'No cart present.'
+        if cart:
+            if 'id' in params:
+                cart_item = session.cart_item(params['id'])
+                if cart_item:
+                    session.delete(cart_item)
+                    session.commit()
+                    message = 'Item deleted.'
+                    status = True
+                else:
+                    message = 'No matching item found.'
+
+            else:
+                message = 'No item id given.'
+        return {
+            'status': status,
+            'message': message
+        }
+
+    @ajax_gettable
+    def user_balance(self, session, message='', **params):
+        user = session.user(c.CURRENT_ADMIN['id'])
+        cart = user.current_cart
+        status = False
+        if not cart:
+            message = 'No cart present.'
+        r_b = user.balance - cart.total_cost
+        if r_b >= 0:
+            message = "${:,.2f}".format(r_b)
+            status = True
+        else:
+            message = "Not enough funds"
+        return {
+            'status': status,
+            'message': message
         }
 
     @ajax_gettable
